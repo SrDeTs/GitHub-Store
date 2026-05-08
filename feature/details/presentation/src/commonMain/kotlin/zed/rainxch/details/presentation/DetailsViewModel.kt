@@ -127,6 +127,7 @@ class DetailsViewModel(
     private val externalImportRepository: ExternalImportRepository,
     private val apkInspector: ApkInspector,
     private val authenticationState: zed.rainxch.core.domain.repository.AuthenticationState,
+    private val systemInstallSerializer: zed.rainxch.core.domain.system.SystemInstallSerializer,
 ) : ViewModel() {
     private var hasLoadedInitialData = false
     private var currentDownloadJob: Job? = null
@@ -1461,7 +1462,23 @@ class DetailsViewModel(
         viewModelScope.launch {
             try {
                 val ext = warning.pendingAssetName.substringAfterLast('.', "").lowercase()
-                val installOutcome = installer.install(warning.pendingFilePath, ext)
+                // Same Android-only serialization rationale as the primary
+                // install path (`installRelease`): non-Android installers
+                // never receive the broadcast that releases the gate.
+                val gatePackageName =
+                    if (platform == Platform.ANDROID) warning.pendingApkInfo?.packageName else null
+                if (gatePackageName != null) {
+                    systemInstallSerializer.awaitFreeAndMarkPending(gatePackageName)
+                }
+                val installOutcome =
+                    try {
+                        installer.install(warning.pendingFilePath, ext)
+                    } catch (e: Throwable) {
+                        if (gatePackageName != null) {
+                            systemInstallSerializer.markCompleted(gatePackageName)
+                        }
+                        throw e
+                    }
 
                 if (platform == Platform.ANDROID) {
                     saveInstalledAppToDatabase(
@@ -2075,7 +2092,23 @@ class DetailsViewModel(
             }
         }
 
-        val installOutcome = installer.install(filePath, ext)
+        // Serialize Android system installer dialogs only — desktop
+        // installers don't fire the broadcast that releases the gate, so
+        // gating there would block the next install for the full timeout.
+        val gatePackageName =
+            if (platform == Platform.ANDROID) validatedApkInfo?.packageName else null
+        if (gatePackageName != null) {
+            systemInstallSerializer.awaitFreeAndMarkPending(gatePackageName)
+        }
+        val installOutcome =
+            try {
+                installer.install(filePath, ext)
+            } catch (e: Throwable) {
+                if (gatePackageName != null) {
+                    systemInstallSerializer.markCompleted(gatePackageName)
+                }
+                throw e
+            }
 
         // Launch attestation check asynchronously (non-blocking)
         launchAttestationCheck(filePath)
