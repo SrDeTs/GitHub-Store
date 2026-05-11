@@ -577,12 +577,7 @@ private fun HomeTopAppBar(
             Image(
                 painter = painterResource(Res.drawable.app_icon),
                 contentDescription = null,
-                modifier =
-                    Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xff121212))
-                        .padding(4.dp),
+                modifier = Modifier.size(48.dp),
                 contentScale = ContentScale.Crop,
             )
         },
