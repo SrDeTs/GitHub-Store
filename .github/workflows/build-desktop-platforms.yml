@@ -84,13 +84,42 @@ jobs:
       contents: read
 
     steps:
+      # Fail loudly if any SignPath config is missing instead of letting the
+      # action surface a generic auth/lookup error halfway through the run.
+      # Policy slug lives in a repo variable so swapping test-signing →
+      # release-signing once SignPath issues the prod cert is a one-click
+      # change in repo Settings, with no code edit needed.
+      - name: Verify SignPath configuration
+        env:
+          ORG_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          POLICY_SLUG: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -n "${ORG_ID:-}" ] || missing+=("SIGNPATH_ORGANIZATION_ID (secret)")
+          [ -n "${API_TOKEN:-}" ] || missing+=("SIGNPATH_API_TOKEN (secret)")
+          [ -n "${POLICY_SLUG:-}" ] || missing+=("SIGNPATH_SIGNING_POLICY_SLUG (variable)")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing SignPath configuration:"
+            printf '::error::  - %s\n' "${missing[@]}"
+            exit 1
+          fi
+          echo "Signing policy: ${POLICY_SLUG}"
+        shell: bash
+
+      # Pinned to the v2 release commit instead of @v2 so a force-push to the
+      # mutable tag (or a compromise of the SignPath org) cannot inject code
+      # into a job that holds id-token: write and the SignPath API token.
+      # When bumping, look up the new SHA via:
+      #   gh api repos/signpath/github-action-submit-signing-request/git/refs/tags/<tag>
       - name: Submit signing request
-        uses: signpath/github-action-submit-signing-request@v1
+        uses: signpath/github-action-submit-signing-request@b9d91eadd323de506c0c81cf0c7fe7438f3360fd # v2 (2025-10-23)
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
           project-slug: 'GitHub-Store'
-          signing-policy-slug: 'test-signing'
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
           artifact-configuration-slug: 'initial-version'
           github-artifact-id: ${{ needs.build-windows.outputs.windows-artifact-id }}
           wait-for-completion: true
