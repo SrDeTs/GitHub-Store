@@ -257,6 +257,51 @@ object AssetVariant {
      * the glob would just equal the filename and provides no rescue
      * value beyond exact-match.
      */
+    /**
+     * Extracts the **base-name stem** of an asset — the lowercased,
+     * separator-stripped concatenation of every token that isn't a
+     * version-like number, an arch token, or a flavor token. Used to
+     * detect "sibling app in the same repo" cases where two releases
+     * ship `AppA-1.10.apk` and `AppB-2.20.apk` and the auto-picker
+     * would otherwise swap one for the other based on numeric version
+     * alone (issue #591).
+     *
+     * `AppA-1.10.apk` → `"appa"`
+     * `AppB-2.20.apk` → `"appb"`
+     * `app-arm64-v8a-1.10.apk` and `app-x86_64-1.10.apk` → both `"app"`
+     * `app-1.0.apk` and `app-fdroid-1.0.apk` → both `"app"`
+     *
+     * Returns an empty string when stripping leaves nothing behind
+     * (release ships only a versioned filename like `2.0.apk`). Callers
+     * treat empty as "no stem signal — don't filter".
+     */
+    fun extractBaseStem(assetName: String): String {
+        val tokens = tokenize(assetName)
+        if (tokens.isEmpty()) return ""
+        return tokens
+            .filterNot { token ->
+                token in VOCABULARY ||
+                    token in ARCH_TOKENS ||
+                    token in FLAVOR_TOKENS ||
+                    isVersionLikeToken(token)
+            }
+            .joinToString("")
+    }
+
+    /**
+     * `1`, `10`, `1.0.0`, `v2.0.1`, `2024.04.10`, `1.0-rc1`, `beta3` —
+     * common patterns used in release filenames to encode the version.
+     * Conservative on purpose: false positives here just lose a stem
+     * character; false negatives would let a numeric variant leak into
+     * the stem and break the sibling-app detection.
+     */
+    private fun isVersionLikeToken(token: String): Boolean {
+        if (token.isEmpty()) return false
+        if (token.all { it.isDigit() }) return true
+        if (token.startsWith("v") && token.drop(1).all { it.isDigit() }) return true
+        return false
+    }
+
     fun deriveGlob(assetName: String): String? {
         val lower = assetName.lowercase()
         // Match either:
