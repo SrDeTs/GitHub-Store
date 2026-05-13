@@ -107,11 +107,26 @@ fun LazyListScope.header(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // Memoize the platform-classifiable subset of release
+                    // assets so each Header recompose (scroll, animation,
+                    // unrelated state change) doesn't re-run the filter.
+                    val crossPlatformAssets =
+                        androidx.compose.runtime.remember(state.selectedRelease) {
+                            state.selectedRelease
+                                ?.assets
+                                ?.filter {
+                                    zed.rainxch.core.domain.util
+                                        .assetPlatformOf(it.name) != null
+                                }
+                                .orEmpty()
+                        }
                     ReleaseAssetsPicker(
                         assetsList = state.installableAssets,
                         selectedAsset = state.primaryAsset,
                         isPickerVisible = state.isReleaseSelectorVisible,
                         pinnedVariant = state.installedApp?.preferredAssetVariant,
+                        showAllPlatforms = state.showAllPlatforms,
+                        crossPlatformAssets = crossPlatformAssets,
                         onAction = onAction,
                         modifier = Modifier.weight(.65f),
                     )

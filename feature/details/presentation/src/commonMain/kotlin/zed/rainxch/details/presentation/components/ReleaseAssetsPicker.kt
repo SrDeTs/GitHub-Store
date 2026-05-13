@@ -18,7 +18,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,19 +73,35 @@ fun ReleaseAssetsPicker(
     selectedAsset: GithubAsset? = null,
     isPickerVisible: Boolean = false,
     pinnedVariant: String? = null,
+    showAllPlatforms: Boolean = false,
+    crossPlatformAssets: List<GithubAsset> = emptyList(),
 ) {
-    val isPickerEnabled by remember(assetsList) {
-        derivedStateOf { assetsList.isNotEmpty() }
+    // Decouple from `showAllPlatforms`: the toggle lives INSIDE the sheet,
+    // so disabling the open-card whenever the current branch is empty
+    // would lock the user out of flipping the setting back. Picker stays
+    // openable whenever either source has anything to show.
+    val isPickerEnabled by remember(assetsList, crossPlatformAssets) {
+        derivedStateOf {
+            assetsList.isNotEmpty() || crossPlatformAssets.isNotEmpty()
+        }
     }
 
     ReleaseAssetsItemsPicker(
         showPicker = isPickerVisible,
         assetsList = assetsList,
+        crossPlatformAssets = crossPlatformAssets,
+        showAllPlatforms = showAllPlatforms,
         selectedAsset = selectedAsset,
         pinnedVariant = pinnedVariant,
         onDismiss = { onAction(DetailsAction.ToggleReleaseAssetsPicker) },
         onSelect = { onAction(DetailsAction.SelectDownloadAsset(it)) },
         onUnpin = { onAction(DetailsAction.UnpinPreferredVariant) },
+        onToggleShowAllPlatforms = { enabled ->
+            onAction(DetailsAction.OnToggleShowAllPlatforms(enabled))
+        },
+        onDownloadForTransfer = { asset ->
+            onAction(DetailsAction.OnDownloadForTransfer(asset.downloadUrl))
+        },
     )
 
     Column(
@@ -127,16 +146,20 @@ fun ReleaseAssetsPicker(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ReleaseAssetsItemsPicker(
     assetsList: List<GithubAsset>,
+    crossPlatformAssets: List<GithubAsset>,
+    showAllPlatforms: Boolean,
     selectedAsset: GithubAsset?,
     pinnedVariant: String?,
     showPicker: Boolean,
     onDismiss: () -> Unit,
     onSelect: (GithubAsset) -> Unit,
     onUnpin: () -> Unit,
+    onToggleShowAllPlatforms: (Boolean) -> Unit,
+    onDownloadForTransfer: (GithubAsset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (!showPicker) return
@@ -199,13 +222,106 @@ private fun ReleaseAssetsItemsPicker(
                 }
             }
 
-            HorizontalDivider()
+            // Cross-platform toggle. Persisted globally — flipping here
+            // changes every Details screen's picker behaviour for this
+            // user. Off = current-OS assets only; On = grouped sections
+            // for Android / Windows / macOS / Linux.
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                Row(
+                    modifier =
+                        Modifier
+                            .clickable(onClick = { onToggleShowAllPlatforms(!showAllPlatforms) })
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Devices,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(Modifier.size(12.dp))
+                    Text(
+                        text = stringResource(Res.string.show_all_platforms_label),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    androidx.compose.material3.Switch(
+                        checked = showAllPlatforms,
+                        onCheckedChange = onToggleShowAllPlatforms,
+                    )
+                }
+            }
 
+            // Hoisted out of the LazyListScope below: `LazyColumn { … }`
+                // body is not a @Composable context, so `remember` calls have
+                // to live in the enclosing Column instead.
+            val groups = remember(crossPlatformAssets) {
+                crossPlatformAssets
+                    .groupBy {
+                        zed.rainxch.core.domain.util.assetPlatformOf(it.name)
+                    }
+                    .filterKeys { it != null }
+                    .mapKeys { it.key!! }
+            }
+            val installableIds = remember(assetsList) {
+                assetsList.map { it.id }.toSet()
+            }
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 8.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (assetsList.isNotEmpty()) {
+                // Grouped path only when the toggle is on AND the release
+                // has platform-classifiable assets. If toggle is on but
+                // `assetPlatformOf` rejected every asset (e.g. release
+                // ships only .zip bundles / extensionless binaries), we
+                // fall through to the OFF-mode `assetsList` render so
+                // the user still sees the current-platform installables
+                // instead of an empty sheet.
+                if (showAllPlatforms && groups.isNotEmpty()) {
+                    // Order: current-platform section first (it's the
+                    // primary install target), then the others.
+                    val sectionOrder =
+                        listOf(
+                            zed.rainxch.core.domain.model.DiscoveryPlatform.Android to Res.string.platform_section_android,
+                            zed.rainxch.core.domain.model.DiscoveryPlatform.Windows to Res.string.platform_section_windows,
+                            zed.rainxch.core.domain.model.DiscoveryPlatform.Macos to Res.string.platform_section_macos,
+                            zed.rainxch.core.domain.model.DiscoveryPlatform.Linux to Res.string.platform_section_linux,
+                        ).sortedByDescending { (platform, _) ->
+                            groups[platform]?.any { it.id in installableIds } == true
+                        }
+                    sectionOrder.forEach { (platform, labelRes) ->
+                        val assets = groups[platform].orEmpty()
+                        if (assets.isEmpty()) return@forEach
+                        val isCurrentDevice =
+                            assets.any { it.id in installableIds }
+                        item(key = "section-${platform.name}") {
+                            PlatformSectionCard(
+                                platformLabel = stringResource(labelRes),
+                                isCurrentDevice = isCurrentDevice,
+                                installableIds = installableIds,
+                                assets = assets,
+                                selectedAsset = selectedAsset,
+                                pinnedVariant = pinnedVariant,
+                                onAssetClick = { asset ->
+                                    if (asset.id in installableIds) {
+                                        onSelect(asset)
+                                    } else {
+                                        onDownloadForTransfer(asset)
+                                    }
+                                },
+                            )
+                        }
+                    }
+                } else if (assetsList.isNotEmpty()) {
                     items(items = assetsList, key = { it.id }) { asset ->
                         val variantTag = AssetVariant.extract(asset.name)
                         val isPinned =
@@ -365,4 +481,114 @@ private fun ReleaseAssetsPickerItemPreview() {
         onClick = {},
         isSelected = false,
     )
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun PlatformSectionCard(
+    platformLabel: String,
+    isCurrentDevice: Boolean,
+    installableIds: Set<Long>,
+    assets: List<GithubAsset>,
+    selectedAsset: GithubAsset?,
+    pinnedVariant: String?,
+    onAssetClick: (GithubAsset) -> Unit,
+) {
+    OutlinedCard(
+        colors =
+            CardDefaults.outlinedCardColors(
+                containerColor =
+                    if (isCurrentDevice) {
+                        MaterialTheme.colorScheme.surfaceContainerLow
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerLowest
+                    },
+            ),
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = platformLabel,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            SectionChip(
+                label =
+                    if (isCurrentDevice) {
+                        stringResource(Res.string.section_chip_your_device)
+                    } else {
+                        stringResource(Res.string.section_chip_for_transfer)
+                    },
+                isPrimary = isCurrentDevice,
+            )
+        }
+
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+
+        assets.forEachIndexed { index, asset ->
+            val isInstallableHere = asset.id in installableIds
+            val variantTag = AssetVariant.extract(asset.name)
+            val isPinned =
+                isInstallableHere &&
+                    !pinnedVariant.isNullOrBlank() &&
+                    variantTag?.equals(pinnedVariant, ignoreCase = true) == true
+            ReleaseAssetItem(
+                asset = asset,
+                isSelected = isInstallableHere && asset.id == selectedAsset?.id,
+                isPinned = isPinned,
+                onClick = { onAssetClick(asset) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (index < assets.lastIndex) {
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionChip(
+    label: String,
+    isPrimary: Boolean,
+) {
+    val container =
+        if (isPrimary) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.tertiaryContainer
+        }
+    val content =
+        if (isPrimary) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onTertiaryContainer
+        }
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = container,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = content,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+        )
+    }
 }
