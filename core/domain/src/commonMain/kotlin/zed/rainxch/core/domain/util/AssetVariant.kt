@@ -278,14 +278,41 @@ object AssetVariant {
     fun extractBaseStem(assetName: String): String {
         val tokens = tokenize(assetName)
         if (tokens.isEmpty()) return ""
-        return tokens
-            .filterNot { token ->
-                token in VOCABULARY ||
-                    token in ARCH_TOKENS ||
-                    token in FLAVOR_TOKENS ||
-                    isVersionLikeToken(token)
+
+        // Mirror `extractTokens`' n-gram consumption pass so the
+        // fragments of compound vocab entries (e.g. `arm64-v8a` →
+        // tokens `["arm64","v8a"]`) are both stripped, not just the
+        // canonical-form half. Without this, `v8a` / `v7a` would
+        // survive the filter and `app-arm64-v8a-1.10.apk` would yield
+        // a different stem than `app-x86_64-1.10.apk`, defeating the
+        // sibling-app detection for arch-variant releases.
+        val consumed = BooleanArray(tokens.size)
+
+        for (i in 0 until tokens.size - 2) {
+            if (consumed[i] || consumed[i + 1] || consumed[i + 2]) continue
+            val candidate = "${tokens[i]}-${tokens[i + 1]}-${tokens[i + 2]}"
+            if (candidate in VOCABULARY) {
+                consumed[i] = true; consumed[i + 1] = true; consumed[i + 2] = true
             }
-            .joinToString("")
+        }
+        for (i in 0 until tokens.size - 1) {
+            if (consumed[i] || consumed[i + 1]) continue
+            val dashed = "${tokens[i]}-${tokens[i + 1]}"
+            val underscored = "${tokens[i]}_${tokens[i + 1]}"
+            if (dashed in VOCABULARY || underscored in VOCABULARY) {
+                consumed[i] = true; consumed[i + 1] = true
+            }
+        }
+
+        val out = StringBuilder()
+        for (i in tokens.indices) {
+            if (consumed[i]) continue
+            val t = tokens[i]
+            if (t in VOCABULARY) continue
+            if (isVersionLikeToken(t)) continue
+            out.append(t)
+        }
+        return out.toString()
     }
 
     /**
