@@ -1142,4 +1142,8 @@
     <string name="saved_for_transfer_hint">Inna platforma — otwiera się w przeglądarce, aby zapisać do transferu</string>
     <string name="section_chip_your_device">Twoje urządzenie</string>
     <string name="section_chip_for_transfer">Do transferu</string>
+    <string name="kao_banner_title">Niech Android pozostanie otwarty</string>
+    <string name="kao_banner_body">Polityka weryfikacji deweloperów Google zagraża otwartej dystrybucji Androida. GitHub Store popiera koalicję.</string>
+    <string name="kao_banner_cta">Dowiedz się więcej</string>
+    <string name="kao_banner_dismiss_cd">Zamknij baner</string>
 </resources>

@@ -1151,4 +1151,8 @@
     <string name="saved_for_transfer_hint">다른 플랫폼 — 전송용 저장을 위해 브라우저에서 열립니다</string>
     <string name="section_chip_your_device">내 기기</string>
     <string name="section_chip_for_transfer">전송용</string>
+    <string name="kao_banner_title">Android를 열린 상태로</string>
+    <string name="kao_banner_body">Google의 개발자 인증 정책이 Android의 개방적인 배포를 위협합니다. GitHub Store는 연합을 지지합니다.</string>
+    <string name="kao_banner_cta">자세히 보기</string>
+    <string name="kao_banner_dismiss_cd">배너 닫기</string>
 </resources>

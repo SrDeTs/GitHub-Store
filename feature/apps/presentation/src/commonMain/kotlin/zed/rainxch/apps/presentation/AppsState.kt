@@ -88,6 +88,8 @@ data class AppsState(
     val pendingExternalImportCount: Int = 0,
     val showImportProposalBanner: Boolean = false,
     val isExternalImportInFlight: Boolean = false,
+    // Keep Android Open campaign banner
+    val showKaoBanner: Boolean = false,
 ) {
     val filteredDeviceApps: ImmutableList<DeviceAppUi>
         get() =

@@ -1173,4 +1173,8 @@
     <string name="saved_for_transfer_hint">منصة أخرى — يفتح في المتصفح للحفظ والنقل</string>
     <string name="section_chip_your_device">جهازك</string>
     <string name="section_chip_for_transfer">للنقل</string>
+    <string name="kao_banner_title">أبقِ أندرويد مفتوحًا</string>
+    <string name="kao_banner_body">سياسة التحقق من المطورين من Google تهدد التوزيع المفتوح لأندرويد. GitHub Store يدعم التحالف.</string>
+    <string name="kao_banner_cta">اعرف المزيد</string>
+    <string name="kao_banner_dismiss_cd">إغلاق البانر</string>
 </resources>

@@ -47,6 +47,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import zed.rainxch.core.domain.util.AssetFilter
 import zed.rainxch.core.domain.util.AssetVariant
+import zed.rainxch.core.domain.utils.BrowserHelper
 import zed.rainxch.core.domain.utils.ShareManager
 import zed.rainxch.githubstore.core.presentation.res.*
 import java.io.File
@@ -63,10 +64,12 @@ class AppsViewModel(
     private val downloadOrchestrator: DownloadOrchestrator,
     private val externalImportRepository: ExternalImportRepository,
     private val systemInstallSerializer: SystemInstallSerializer,
+    private val browserHelper: BrowserHelper,
 ) : ViewModel() {
     companion object {
         private const val BANNER_THRESHOLD = 1
         private const val UPDATE_CHECK_COOLDOWN_MS = 30 * 60 * 1000L
+        private const val KAO_OPEN_LETTER_URL = "https://keepandroidopen.org/open-letter/"
     }
 
     private var hasLoadedInitialData = false
@@ -92,6 +95,7 @@ class AppsViewModel(
                 if (!hasLoadedInitialData) {
                     loadApps()
                     observePendingExternalImports()
+                    observeKaoBannerDismissed()
                     hasLoadedInitialData = true
                 }
             }.stateIn(
@@ -99,6 +103,14 @@ class AppsViewModel(
                 started = SharingStarted.WhileSubscribed(5_000L),
                 initialValue = AppsState(),
             )
+
+    private fun observeKaoBannerDismissed() {
+        viewModelScope.launch {
+            tweaksRepository.getKaoBannerDismissed().collect { dismissed ->
+                _state.update { it.copy(showKaoBanner = !dismissed) }
+            }
+        }
+    }
 
     private fun observePendingExternalImports() {
         viewModelScope.launch {
@@ -511,6 +523,18 @@ class AppsViewModel(
 
             AppsAction.OnDismissImportSummary -> {
                 _state.update { it.copy(importSummary = null) }
+            }
+
+            AppsAction.OnDismissKaoBanner -> {
+                viewModelScope.launch {
+                    tweaksRepository.setKaoBannerDismissed(true)
+                }
+            }
+
+            AppsAction.OnKaoLearnMore -> {
+                browserHelper.openUrl(KAO_OPEN_LETTER_URL) { error ->
+                    logger.warn("Failed to open KAO open letter: $error")
+                }
             }
 
             is AppsAction.OnUninstallConfirmed -> {
