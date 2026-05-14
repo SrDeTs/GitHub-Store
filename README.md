@@ -129,7 +129,7 @@ brew install --cask github-store
 xattr -dr com.apple.quarantine /Applications/GitHub-Store.app
 ```
 
-The final `xattr` command is required until the app is signed and notarized; without it, macOS Gatekeeper blocks the app with a "damaged" or "cannot be opened" error.
+The final `xattr` command is required until the app is signed and notarized; without it, macOS Gatekeeper blocks the app with a "damaged" or "cannot be opened" error. Adjust the path if you installed the Cask with a custom `--appdir` (the default is `/Applications`).
 
 ---
 
