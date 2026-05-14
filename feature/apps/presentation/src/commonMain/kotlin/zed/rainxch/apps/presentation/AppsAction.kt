@@ -118,6 +118,9 @@ sealed interface AppsAction {
     data object OnImportApps : AppsAction
     data object OnDismissImportSummary : AppsAction
 
+    data object OnDismissKaoBanner : AppsAction
+    data object OnKaoLearnMore : AppsAction
+
     /**
      * User tapped the "Install" affordance on a row whose download
      * was previously deferred (the user navigated away from Details

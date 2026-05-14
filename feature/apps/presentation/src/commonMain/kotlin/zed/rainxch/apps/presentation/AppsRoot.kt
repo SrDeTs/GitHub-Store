@@ -98,6 +98,7 @@ import zed.rainxch.apps.presentation.components.CompactAppRow
 import zed.rainxch.apps.presentation.components.InstalledAppIcon
 import zed.rainxch.apps.presentation.components.LinkAppBottomSheet
 import zed.rainxch.apps.presentation.components.VariantPickerDialog
+import zed.rainxch.apps.presentation.components.KaoBanner
 import zed.rainxch.apps.presentation.import.components.ImportProposalBanner
 import zed.rainxch.apps.presentation.model.AppItem
 import zed.rainxch.apps.presentation.model.AppSortRule
@@ -672,6 +673,17 @@ fun AppsScreen(
                                                 pendingCount = state.pendingExternalImportCount,
                                                 onReview = { onAction(AppsAction.OnImportProposalReview) },
                                                 onDismiss = { onAction(AppsAction.OnImportProposalDismiss) },
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (state.showKaoBanner) {
+                                    item(key = "kao-banner") {
+                                        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                            KaoBanner(
+                                                onLearnMore = { onAction(AppsAction.OnKaoLearnMore) },
+                                                onDismiss = { onAction(AppsAction.OnDismissKaoBanner) },
                                             )
                                         }
                                     }
