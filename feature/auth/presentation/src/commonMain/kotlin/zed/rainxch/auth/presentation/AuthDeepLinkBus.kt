@@ -1,5 +1,6 @@
 package zed.rainxch.auth.presentation
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -31,6 +32,7 @@ object AuthDeepLinkBus {
         _events.tryEmit(event)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun resetReplay() {
         _events.resetReplayCache()
     }

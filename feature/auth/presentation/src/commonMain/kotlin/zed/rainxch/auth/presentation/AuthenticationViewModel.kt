@@ -286,6 +286,21 @@ class AuthenticationViewModel(
                     savedStateHandle[KEY_WEB_AUTH_STATE] = registration.state
                     browserHelper.openUrl(registration.authUrl) { error ->
                         logger.warn("Failed to open auth URL: $error")
+                        savedStateHandle.remove<String>(KEY_WEB_AUTH_STATE)
+                        viewModelScope.launch {
+                            val (message, hint) =
+                                categorizeError(IllegalStateException(error))
+                            _state.update {
+                                it.copy(
+                                    isWebAuthInFlight = false,
+                                    loginState =
+                                        AuthLoginState.Error(
+                                            message = message,
+                                            recoveryHint = hint,
+                                        ),
+                                )
+                            }
+                        }
                     }
                     _state.update { it.copy(isWebAuthInFlight = false) }
                 }
@@ -313,9 +328,16 @@ class AuthenticationViewModel(
 
     private fun consumeAuthHandoff(handoffId: String, state: String) {
         val expected = savedStateHandle.get<String>(KEY_WEB_AUTH_STATE)
-        if (expected == null || expected != state) {
+        // Custom scheme is public — any app can fire githubstore://auth?...
+        // No pending session = not our flow. Drop silently to avoid knocking
+        // an unsuspecting user into an error screen.
+        if (expected == null) {
+            logger.debug("Ignoring web-auth handoff with no pending session")
+            return
+        }
+        if (expected != state) {
             logger.warn(
-                "Web-auth handoff state mismatch. expected=${expected?.take(8)} got=${state.take(8)}",
+                "Web-auth handoff state mismatch. expected=${expected.take(8)} got=${state.take(8)}",
             )
             viewModelScope.launch {
                 _state.update {
@@ -374,7 +396,11 @@ class AuthenticationViewModel(
 
     private fun consumeAuthError(reason: String, state: String) {
         val expected = savedStateHandle.get<String>(KEY_WEB_AUTH_STATE)
-        if (expected != null && expected != state) {
+        if (expected == null) {
+            logger.debug("Ignoring web-auth error with no pending session")
+            return
+        }
+        if (expected != state) {
             logger.warn(
                 "Web-auth error state mismatch (ignored). expected=${expected.take(8)} got=${state.take(8)}",
             )
