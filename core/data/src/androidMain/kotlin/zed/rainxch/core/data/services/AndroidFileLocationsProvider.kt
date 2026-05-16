@@ -2,18 +2,62 @@ package zed.rainxch.core.data.services
 
 import android.content.Context
 import android.os.Environment
+import android.util.Log
 import java.io.File
 
 class AndroidFileLocationsProvider(
     private val context: Context,
 ) : zed.rainxch.core.data.services.FileLocationsProvider {
+    @Volatile
+    private var cachedDownloadsDir: String? = null
+
     override fun appDownloadsDir(): String {
-        val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            ?: File(context.filesDir, "downloads")
-        if (!dir.exists() && !dir.mkdirs() && !dir.exists()) {
-            throw IllegalStateException("Failed to create downloads directory: ${dir.absolutePath}")
+        cachedDownloadsDir?.let { return it }
+        synchronized(this) {
+            cachedDownloadsDir?.let { return it }
+            val resolved = resolveDownloadsDir()
+            cachedDownloadsDir = resolved
+            return resolved
         }
-        return dir.absolutePath
+    }
+
+    private fun resolveDownloadsDir(): String {
+        val candidates =
+            listOf(
+                { runCatching { context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) }.getOrNull() },
+                { runCatching { context.getExternalFilesDir(null)?.let { File(it, "downloads") } }.getOrNull() },
+                { File(context.filesDir, "downloads") },
+            )
+        for (factory in candidates) {
+            val dir = factory.invoke() ?: continue
+            val ready = ensureUsable(dir)
+            if (ready != null) {
+                if (dir != context.filesDir) {
+                    Log.i(TAG, "Downloads dir resolved: ${ready.absolutePath}")
+                }
+                return ready.absolutePath
+            }
+            Log.w(TAG, "Downloads dir candidate unusable: ${dir.absolutePath}")
+        }
+        // Last-resort fallback. context.filesDir always exists for an
+        // installed app; if even this fails the device is in an
+        // unrecoverable state and a thrown exception wouldn't help.
+        val fallback = File(context.filesDir, "downloads")
+        fallback.mkdirs()
+        return fallback.absolutePath
+    }
+
+    private fun ensureUsable(dir: File): File? {
+        return try {
+            if (!dir.exists() && !dir.mkdirs() && !dir.exists()) {
+                return null
+            }
+            if (!dir.canWrite()) return null
+            dir
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed probing ${dir.absolutePath}: ${t.message}")
+            null
+        }
     }
 
     override fun userDownloadsDir(): String {
@@ -55,5 +99,9 @@ class AndroidFileLocationsProvider(
             }
         }
         return allDeleted
+    }
+
+    private companion object {
+        const val TAG = "AndroidFileLocations"
     }
 }
