@@ -746,6 +746,20 @@
     <!-- Personal Access Token sign-in -->
     <string name="pat_use_token_instead">Sorun mu var? Personal Access Token kullanın</string>
     <string name="auth_use_device_code_instead">Cihaz kodu kullan</string>
+    <string name="installer_category_side_store">F-Droid / Obtainium</string>
+    <string name="installer_category_sideloaded">Yandan yükleme</string>
+    <string name="installer_category_vendor_store">Üretici mağazası</string>
+    <string name="installer_category_play_store">Play Store</string>
+    <string name="installer_category_system_update">Sistem güncellemesi</string>
+    <string name="link_smart_search_title">Eşleşen depoyu bul</string>
+    <string name="link_smart_search_searching">GitHub'da eşleşme aranıyor…</string>
+    <string name="link_smart_search_no_matches">Otomatik eşleşme bulunamadı.</string>
+    <string name="link_smart_search_failed">Eşleşmeler aranamadı.</string>
+    <string name="link_smart_search_enter_manually">URL'yi elle gir</string>
+    <string name="match_source_manifest">Manifest</string>
+    <string name="match_source_fingerprint">İmza</string>
+    <string name="match_source_search">Arama</string>
+    <string name="match_source_manual">Elle</string>
     <string name="pat_sheet_title">Personal Access Token ile giriş yap</string>
     <string name="pat_sheet_description">GitHub'a erişebilen herhangi bir cihazda Personal Access Token (classic veya fine-grained) oluşturun ve aşağıya yapıştırın. Depolara ve profilinize okuma erişimi gerekir.</string>
     <string name="pat_open_settings">GitHub token ayarlarını aç</string>

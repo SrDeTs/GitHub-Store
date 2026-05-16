@@ -23,6 +23,13 @@
         "Android 16 / özel ROM'larda Ayarlar çökmesi ve indirme hatası — harici depolama engellendiğinde dahili depolamaya geçer.",
         "Android 13+ üzerinde Magisk / KernelSU / APatch algılama — önceki sonda SELinux tarafından maskeleniyordu."
       ]
+    },
+    {
+      "type": "IMPROVED",
+      "bullets": [
+        "Uygulamayı manuel bağlarken — yükleyici kaynağına göre sıralı (önce F-Droid / Obtainium, en sonda Play Store ve sistem güncellemeleri); her uygulamanın kaynağını gösteren çip eklendi.",
+        "Manuel bağlama artık eşleşen GitHub depolarını otomatik öneriyor — uygulamayı seçin, sıralı adaylar alın, bağlamak için dokunun. URL'yi manuel girme seçeneği de duruyor."
+      ]
     }
   ]
 }

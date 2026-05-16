@@ -23,6 +23,13 @@
         "Crash su Android 16 / ROM personalizzate in Impostazioni e download — ripiega su archiviazione interna quando quella esterna è bloccata.",
         "Rilevamento di Magisk / KernelSU / APatch su Android 13+ — la sonda precedente era mascherata da SELinux."
       ]
+    },
+    {
+      "type": "IMPROVED",
+      "bullets": [
+        "Collegamento manuale di app — ordinate per origine di installazione (F-Droid / Obtainium per primi, Play Store e aggiornamenti di sistema per ultimi) con un chip che mostra l'origine di ogni app.",
+        "Il collegamento manuale ora suggerisce automaticamente repo GitHub corrispondenti — scegli un'app, ottieni candidati classificati, tocca per collegare. L'inserimento manuale dell'URL resta disponibile."
+      ]
     }
   ]
 }

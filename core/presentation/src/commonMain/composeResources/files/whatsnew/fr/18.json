@@ -23,6 +23,13 @@
         "Crash sur Android 16 / ROMs personnalisées dans Paramètres et téléchargements — bascule vers stockage interne quand l'externe est bloqué.",
         "Détection de Magisk / KernelSU / APatch sur Android 13+ — la sonde précédente était masquée par SELinux."
       ]
+    },
+    {
+      "type": "IMPROVED",
+      "bullets": [
+        "Lors du lien manuel — tri par source d'installation (F-Droid / Obtainium d'abord, Play Store et mises à jour système en dernier) avec une puce indiquant la source de chaque app.",
+        "Le lien manuel suggère désormais automatiquement les dépôts GitHub correspondants — choisis une app, obtiens des candidats classés, touche pour lier. Saisie d'URL manuelle toujours disponible."
+      ]
     }
   ]
 }

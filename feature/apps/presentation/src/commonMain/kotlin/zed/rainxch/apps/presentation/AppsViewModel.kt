@@ -352,15 +352,33 @@ class AppsViewModel(
             }
 
             is AppsAction.OnDeviceAppSelected -> {
+                startSmartMatch(action.app)
+            }
+
+            is AppsAction.OnLinkSuggestionSelected -> {
                 _state.update {
                     it.copy(
-                        selectedDeviceApp = action.app,
+                        repoUrl = "https://github.com/${action.owner}/${action.repo}",
+                        repoValidationError = null,
+                    )
+                }
+                validateAndLinkRepo()
+            }
+
+            AppsAction.OnLinkEnterUrlManually -> {
+                _state.update {
+                    it.copy(
                         linkStep = LinkStep.EnterUrl,
                         repoUrl = "",
                         repoValidationError = null,
                         fetchedRepoInfo = null,
                     )
                 }
+            }
+
+            AppsAction.OnRetryLinkSearch -> {
+                val app = _state.value.selectedDeviceApp ?: return
+                startSmartMatch(app)
             }
 
             is AppsAction.OnRepoUrlChanged -> {
@@ -381,6 +399,23 @@ class AppsViewModel(
                     it.copy(
                         linkStep = LinkStep.PickApp,
                         selectedDeviceApp = null,
+                        repoUrl = "",
+                        repoValidationError = null,
+                        fetchedRepoInfo = null,
+                        linkInstallableAssets = persistentListOf(),
+                        linkSelectedAsset = null,
+                        linkDownloadProgress = null,
+                        linkSuggestions = persistentListOf(),
+                        linkSearchError = null,
+                        linkSearchLoading = false,
+                    )
+                }
+            }
+
+            AppsAction.OnBackToSmartMatch -> {
+                _state.update {
+                    it.copy(
+                        linkStep = LinkStep.SmartMatch,
                         repoUrl = "",
                         repoValidationError = null,
                         fetchedRepoInfo = null,
@@ -1606,6 +1641,64 @@ class AppsViewModel(
         }
     }
 
+    private var smartMatchJob: Job? = null
+
+    private fun startSmartMatch(app: zed.rainxch.apps.presentation.model.DeviceAppUi) {
+        smartMatchJob?.cancel()
+        _state.update {
+            it.copy(
+                selectedDeviceApp = app,
+                linkStep = LinkStep.SmartMatch,
+                linkSearchLoading = true,
+                linkSuggestions = persistentListOf(),
+                linkSearchError = null,
+                repoUrl = "",
+                repoValidationError = null,
+                fetchedRepoInfo = null,
+            )
+        }
+        smartMatchJob = viewModelScope.launch {
+            try {
+                val candidate =
+                    zed.rainxch.core.domain.system.ExternalAppCandidate(
+                        packageName = app.packageName,
+                        appLabel = app.appName,
+                        versionName = app.versionName,
+                        versionCode = app.versionCode,
+                        signingFingerprint = app.signingFingerprint,
+                        installerKind = zed.rainxch.core.domain.system.InstallerKind.UNKNOWN,
+                        manifestHint = null,
+                        firstSeenAt = kotlin.time.Clock.System.now().toEpochMilliseconds(),
+                    )
+                val results = externalImportRepository.resolveMatches(listOf(candidate))
+                val suggestions =
+                    results
+                        .firstOrNull()
+                        ?.suggestions
+                        ?.sortedByDescending { it.confidence }
+                        ?.take(8)
+                        .orEmpty()
+                        .toImmutableList()
+                _state.update {
+                    it.copy(
+                        linkSearchLoading = false,
+                        linkSuggestions = suggestions,
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.warn("Smart match failed for ${app.packageName}: ${e.message}")
+                _state.update {
+                    it.copy(
+                        linkSearchLoading = false,
+                        linkSearchError = e.message ?: "search failed",
+                    )
+                }
+            }
+        }
+    }
+
     private fun openLinkSheet() {
         viewModelScope.launch {
             _state.update {
@@ -1618,6 +1711,9 @@ class AppsViewModel(
                     repoUrl = "",
                     repoValidationError = null,
                     fetchedRepoInfo = null,
+                    linkSuggestions = persistentListOf(),
+                    linkSearchError = null,
+                    linkSearchLoading = false,
                 )
             }
 
@@ -1639,6 +1735,8 @@ class AppsViewModel(
     }
 
     private fun dismissLinkSheet() {
+        smartMatchJob?.cancel()
+        smartMatchJob = null
         _state.update {
             it.copy(
                 showLinkSheet = false,
@@ -1657,6 +1755,9 @@ class AppsViewModel(
                 linkAssetFilter = "",
                 linkAssetFilterError = null,
                 linkFallbackToOlder = false,
+                linkSuggestions = persistentListOf(),
+                linkSearchError = null,
+                linkSearchLoading = false,
             )
         }
     }
@@ -1956,22 +2057,6 @@ class AppsViewModel(
                             ),
                         ),
                     )
-                    return@launch
-                }
-
-                if (apkInfo.packageName != selectedApp.packageName) {
-                    _state.update {
-                        it.copy(
-                            linkDownloadProgress = null,
-                            linkValidationStatus = null,
-                            repoValidationError =
-                                getString(
-                                    Res.string.package_name_mismatch,
-                                    apkInfo.packageName,
-                                    selectedApp.packageName,
-                                ),
-                        )
-                    }
                     return@launch
                 }
 

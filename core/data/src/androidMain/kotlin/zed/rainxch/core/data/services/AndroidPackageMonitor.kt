@@ -121,13 +121,28 @@ class AndroidPackageMonitor(
                             pkg.versionCode.toLong()
                         }
 
+                    val installer = resolveInstallerPackageName(pkg.packageName)
+                    val isUpdatedSystem =
+                        (pkg.applicationInfo?.flags ?: 0) and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP != 0
                     DeviceApp(
                         packageName = pkg.packageName,
                         appName = pkg.applicationInfo?.loadLabel(packageManager)?.toString() ?: pkg.packageName,
                         versionName = pkg.versionName,
                         versionCode = versionCode,
                         signingFingerprint = null,
+                        installerPackageName = installer,
+                        isUpdatedSystemApp = isUpdatedSystem,
                     )
                 }.sortedBy { it.appName.lowercase() }
         }
+
+    private fun resolveInstallerPackageName(pkg: String): String? =
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                packageManager.getInstallSourceInfo(pkg).installingPackageName
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getInstallerPackageName(pkg)
+            }
+        }.getOrNull()
 }

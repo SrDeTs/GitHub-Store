@@ -13,6 +13,7 @@ import zed.rainxch.apps.presentation.model.InstalledAppUi
 import zed.rainxch.apps.presentation.model.UpdateAllProgress
 import zed.rainxch.core.domain.model.DeviceApp
 import zed.rainxch.core.domain.model.GithubAsset
+import zed.rainxch.core.domain.system.RepoMatchSuggestion
 
 data class AppsState(
     val apps: ImmutableList<AppItem> = persistentListOf(),
@@ -39,6 +40,9 @@ data class AppsState(
     val deviceAppSearchQuery: String = "",
     val selectedDeviceApp: DeviceAppUi? = null,
     val repoUrl: String = "",
+    val linkSearchLoading: Boolean = false,
+    val linkSuggestions: ImmutableList<RepoMatchSuggestion> = persistentListOf(),
+    val linkSearchError: String? = null,
     val isValidatingRepo: Boolean = false,
     val repoValidationError: String? = null,
     val linkValidationStatus: String? = null,
@@ -92,16 +96,23 @@ data class AppsState(
     val showKaoBanner: Boolean = false,
 ) {
     val filteredDeviceApps: ImmutableList<DeviceAppUi>
-        get() =
-            if (deviceAppSearchQuery.isBlank()) {
-                deviceApps.toImmutableList()
-            } else {
-                deviceApps
-                    .filter {
+        get() {
+            val searched =
+                if (deviceAppSearchQuery.isBlank()) {
+                    deviceApps
+                } else {
+                    deviceApps.filter {
                         it.appName.contains(deviceAppSearchQuery, ignoreCase = true) ||
                             it.packageName.contains(deviceAppSearchQuery, ignoreCase = true)
-                    }.toImmutableList()
-            }
+                    }
+                }
+            return searched
+                .sortedWith(
+                    compareBy<DeviceAppUi> { it.installerCategory.sortPriority }
+                        .thenBy { it.appName.lowercase() }
+                        .thenBy { it.packageName },
+                ).toImmutableList()
+        }
 
     /**
      * Live-filtered view of [linkInstallableAssets] for the link sheet's
@@ -124,6 +135,7 @@ data class AppsState(
 
 enum class LinkStep {
     PickApp,
+    SmartMatch,
     EnterUrl,
     PickAsset,
 }

@@ -23,6 +23,13 @@
         "修复 Android 16 / 定制 ROM 上设置闪退与下载失败 — 外部存储被阻止时回退到内部存储。",
         "Android 13+ 上检测 Magisk / KernelSU / APatch — 之前的探测被 SELinux 屏蔽。"
       ]
+    },
+    {
+      "type": "IMPROVED",
+      "bullets": [
+        "手动链接应用时 — 按安装来源排序（F-Droid / Obtainium 在前，Play 商店与系统更新在后），并通过标签显示每个应用的来源。",
+        "手动链接现可自动推荐匹配的 GitHub 仓库 — 选择应用，获得排序后的候选项，点击即可链接。仍支持手动输入 URL。"
+      ]
     }
   ]
 }

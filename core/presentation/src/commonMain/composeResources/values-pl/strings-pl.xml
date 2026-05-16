@@ -716,6 +716,20 @@
     <!-- Personal Access Token sign-in -->
     <string name="pat_use_token_instead">Masz problem? Użyj Personal Access Token</string>
     <string name="auth_use_device_code_instead">Użyj kodu urządzenia</string>
+    <string name="installer_category_side_store">F-Droid / Obtainium</string>
+    <string name="installer_category_sideloaded">Zainstalowane ręcznie</string>
+    <string name="installer_category_vendor_store">Sklep producenta</string>
+    <string name="installer_category_play_store">Play Store</string>
+    <string name="installer_category_system_update">Aktualizacja systemu</string>
+    <string name="link_smart_search_title">Znajdź pasujące repo</string>
+    <string name="link_smart_search_searching">Szukam dopasowania na GitHub…</string>
+    <string name="link_smart_search_no_matches">Nie znaleziono automatycznych dopasowań.</string>
+    <string name="link_smart_search_failed">Nie można wyszukać dopasowań.</string>
+    <string name="link_smart_search_enter_manually">Wpisz URL ręcznie</string>
+    <string name="match_source_manifest">Manifest</string>
+    <string name="match_source_fingerprint">Podpis</string>
+    <string name="match_source_search">Wyszukiwanie</string>
+    <string name="match_source_manual">Ręczne</string>
     <string name="pat_sheet_title">Zaloguj się za pomocą Personal Access Token</string>
     <string name="pat_sheet_description">Utwórz Personal Access Token (classic lub fine-grained) na urządzeniu z dostępem do GitHuba i wklej go poniżej. Wymagany jest dostęp do odczytu repozytoriów i Twojego profilu.</string>
     <string name="pat_open_settings">Otwórz ustawienia tokenów GitHuba</string>

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,6 +35,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -54,6 +56,9 @@ import zed.rainxch.apps.presentation.AppsState
 import zed.rainxch.apps.presentation.LinkStep
 import zed.rainxch.apps.presentation.model.DeviceAppUi
 import zed.rainxch.apps.presentation.model.GithubAssetUi
+import zed.rainxch.core.domain.model.InstallerCategory
+import zed.rainxch.core.domain.system.RepoMatchSource
+import zed.rainxch.core.domain.system.RepoMatchSuggestion
 import zed.rainxch.githubstore.core.presentation.res.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,6 +94,21 @@ fun LinkAppBottomSheet(
                     onAppSelected = { onAction(AppsAction.OnDeviceAppSelected(it)) },
                 )
 
+                LinkStep.SmartMatch -> SmartMatchStep(
+                    selectedApp = state.selectedDeviceApp,
+                    loading = state.linkSearchLoading,
+                    suggestions = state.linkSuggestions,
+                    error = state.linkSearchError,
+                    isValidating = state.isValidatingRepo,
+                    validationStatus = state.linkValidationStatus,
+                    onSuggestionSelected = { owner, repo ->
+                        onAction(AppsAction.OnLinkSuggestionSelected(owner, repo))
+                    },
+                    onEnterUrlManually = { onAction(AppsAction.OnLinkEnterUrlManually) },
+                    onRetry = { onAction(AppsAction.OnRetryLinkSearch) },
+                    onBack = { onAction(AppsAction.OnBackToAppPicker) },
+                )
+
                 LinkStep.EnterUrl -> EnterUrlStep(
                     selectedApp = state.selectedDeviceApp,
                     repoUrl = state.repoUrl,
@@ -97,7 +117,7 @@ fun LinkAppBottomSheet(
                     validationStatus = state.linkValidationStatus,
                     onUrlChanged = { onAction(AppsAction.OnRepoUrlChanged(it)) },
                     onConfirm = { onAction(AppsAction.OnValidateAndLinkRepo) },
-                    onBack = { onAction(AppsAction.OnBackToAppPicker) },
+                    onBack = { onAction(AppsAction.OnBackToSmartMatch) },
                 )
 
                 LinkStep.PickAsset -> PickAssetStep(
@@ -234,13 +254,18 @@ private fun DeviceAppItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                text = app.packageName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                InstallerCategoryChip(app.installerCategory)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = app.packageName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
 
         Spacer(Modifier.width(8.dp))
@@ -250,8 +275,290 @@ private fun DeviceAppItem(
                 text = version,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.outline,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 96.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun InstallerCategoryChip(category: InstallerCategory) {
+    val label = when (category) {
+        InstallerCategory.SIDE_STORE -> stringResource(Res.string.installer_category_side_store)
+        InstallerCategory.SIDELOADED -> stringResource(Res.string.installer_category_sideloaded)
+        InstallerCategory.VENDOR_STORE -> stringResource(Res.string.installer_category_vendor_store)
+        InstallerCategory.PLAY_STORE -> stringResource(Res.string.installer_category_play_store)
+        InstallerCategory.SYSTEM_UPDATE -> stringResource(Res.string.installer_category_system_update)
+    }
+    val container = when (category) {
+        InstallerCategory.SIDE_STORE -> MaterialTheme.colorScheme.primaryContainer
+        InstallerCategory.SIDELOADED -> MaterialTheme.colorScheme.secondaryContainer
+        InstallerCategory.VENDOR_STORE -> MaterialTheme.colorScheme.tertiaryContainer
+        InstallerCategory.PLAY_STORE -> MaterialTheme.colorScheme.surfaceVariant
+        InstallerCategory.SYSTEM_UPDATE -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val content = when (category) {
+        InstallerCategory.SIDE_STORE -> MaterialTheme.colorScheme.onPrimaryContainer
+        InstallerCategory.SIDELOADED -> MaterialTheme.colorScheme.onSecondaryContainer
+        InstallerCategory.VENDOR_STORE -> MaterialTheme.colorScheme.onTertiaryContainer
+        InstallerCategory.PLAY_STORE -> MaterialTheme.colorScheme.onSurfaceVariant
+        InstallerCategory.SYSTEM_UPDATE -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        color = container,
+        shape = RoundedCornerShape(6.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = content,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+    }
+}
+
+@Composable
+private fun SmartMatchStep(
+    selectedApp: DeviceAppUi?,
+    loading: Boolean,
+    suggestions: List<RepoMatchSuggestion>,
+    error: String?,
+    isValidating: Boolean,
+    validationStatus: String?,
+    onSuggestionSelected: (owner: String, repo: String) -> Unit,
+    onEnterUrlManually: () -> Unit,
+    onRetry: () -> Unit,
+    onBack: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 24.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack, enabled = !isValidating) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = null,
+                )
+            }
+            Text(
+                text = stringResource(Res.string.link_smart_search_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        if (selectedApp != null) {
+            Text(
+                text = selectedApp.appName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = selectedApp.packageName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        when {
+            loading -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(Res.string.link_smart_search_searching),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            isValidating -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = validationStatus ?: stringResource(Res.string.validating_repo),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            error != null -> {
+                Text(
+                    text = stringResource(Res.string.link_smart_search_failed),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                Spacer(Modifier.height(8.dp))
+                FilledTonalButton(
+                    onClick = onRetry,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text(stringResource(Res.string.retry))
+                }
+            }
+
+            suggestions.isEmpty() -> {
+                Text(
+                    text = stringResource(Res.string.link_smart_search_no_matches),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            else -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp),
+                ) {
+                    items(
+                        items = suggestions,
+                        key = { "${it.owner}/${it.repo}" },
+                    ) { suggestion ->
+                        SuggestionRow(
+                            suggestion = suggestion,
+                            onClick = { onSuggestionSelected(suggestion.owner, suggestion.repo) },
+                        )
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        FilledTonalButton(
+            onClick = onEnterUrlManually,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isValidating,
+            shape = RoundedCornerShape(12.dp),
+        ) {
+            Text(stringResource(Res.string.link_smart_search_enter_manually))
+        }
+    }
+}
+
+@Composable
+private fun SuggestionRow(
+    suggestion: RepoMatchSuggestion,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "${suggestion.owner}/${suggestion.repo}",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            val description = suggestion.description?.takeIf { it.isNotBlank() }
+            if (description != null) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                MatchSourceChip(suggestion.source)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = "${(suggestion.confidence * 100).toInt()}%",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                suggestion.stars?.let { stars ->
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "★ $stars",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MatchSourceChip(source: RepoMatchSource) {
+    val label = when (source) {
+        RepoMatchSource.MANIFEST -> stringResource(Res.string.match_source_manifest)
+        RepoMatchSource.FINGERPRINT -> stringResource(Res.string.match_source_fingerprint)
+        RepoMatchSource.SEARCH -> stringResource(Res.string.match_source_search)
+        RepoMatchSource.MANUAL -> stringResource(Res.string.match_source_manual)
+    }
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        shape = RoundedCornerShape(6.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+        )
     }
 }
 

@@ -709,6 +709,20 @@
     <!-- Personal Access Token sign-in -->
     <string name="pat_use_token_instead">ログインできない場合は Personal Access Token を使用</string>
     <string name="auth_use_device_code_instead">代わりにデバイスコードを使用</string>
+    <string name="installer_category_side_store">F-Droid / Obtainium</string>
+    <string name="installer_category_sideloaded">サイドロード</string>
+    <string name="installer_category_vendor_store">メーカーストア</string>
+    <string name="installer_category_play_store">Play ストア</string>
+    <string name="installer_category_system_update">システム更新</string>
+    <string name="link_smart_search_title">一致するリポを探す</string>
+    <string name="link_smart_search_searching">GitHub で一致を検索中…</string>
+    <string name="link_smart_search_no_matches">自動的に一致するものは見つかりませんでした。</string>
+    <string name="link_smart_search_failed">一致を検索できませんでした。</string>
+    <string name="link_smart_search_enter_manually">URL を手動で入力</string>
+    <string name="match_source_manifest">マニフェスト</string>
+    <string name="match_source_fingerprint">署名</string>
+    <string name="match_source_search">検索</string>
+    <string name="match_source_manual">手動</string>
     <string name="pat_sheet_title">Personal Access Token でログイン</string>
     <string name="pat_sheet_description">GitHub にアクセスできる端末で Personal Access Token（classic または fine-grained）を作成し、以下に貼り付けてください。リポジトリとプロフィールへの読み取りアクセス権が必要です。</string>
     <string name="pat_open_settings">GitHub のトークン設定を開く</string>
