@@ -113,11 +113,6 @@ interface TweaksRepository {
 
     suspend fun setKaoBannerDismissed(dismissed: Boolean)
 
-    /**
-     * Link-flow installed-app picker: include Play-Store-installed apps.
-     * Default false — Play-installed apps update via Play and rarely need
-     * linking to a GitHub repo, so non-Play apps surface first.
-     */
     fun getShowPlayStoreAppsInLink(): Flow<Boolean>
 
     suspend fun setShowPlayStoreAppsInLink(enabled: Boolean)

@@ -361,9 +361,17 @@ class AppsViewModel(
             }
 
             is AppsAction.OnToggleShowPlayStoreApps -> {
+                val previous = _state.value.showPlayStoreAppsInLink
                 _state.update { it.copy(showPlayStoreAppsInLink = action.enabled) }
                 viewModelScope.launch {
-                    tweaksRepository.setShowPlayStoreAppsInLink(action.enabled)
+                    try {
+                        tweaksRepository.setShowPlayStoreAppsInLink(action.enabled)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (t: Throwable) {
+                        logger.warn("Failed to persist showPlayStoreAppsInLink: ${t.message}")
+                        _state.update { it.copy(showPlayStoreAppsInLink = previous) }
+                    }
                 }
             }
 

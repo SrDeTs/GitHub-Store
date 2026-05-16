@@ -134,14 +134,12 @@ class AndroidPackageMonitor(
         }
 
     private fun resolveInstallerPackageName(pkg: String): String? =
-        try {
+        runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 packageManager.getInstallSourceInfo(pkg).installingPackageName
             } else {
                 @Suppress("DEPRECATION")
                 packageManager.getInstallerPackageName(pkg)
             }
-        } catch (_: Throwable) {
-            null
-        }
+        }.getOrNull()
 }
