@@ -1,12 +1,9 @@
 package zed.rainxch.details.presentation.components.sections
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,16 +19,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -53,6 +48,8 @@ fun LazyListScope.about(
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
     collapsedHeight: Dp,
+    measuredHeightPx: Float?,
+    onMeasured: (Float) -> Unit,
     translationState: TranslationState,
     onTranslateClick: () -> Unit,
     onLanguagePickerClick: () -> Unit,
@@ -100,7 +97,7 @@ fun LazyListScope.about(
         }
     }
 
-    item {
+    item(key = "about_markdown") {
         val raw =
             if (translationState.isShowingTranslation && translationState.translatedText != null) {
                 translationState.translatedText
@@ -113,24 +110,19 @@ fun LazyListScope.about(
                 zed.rainxch.core.domain.util.applyThemeAwareImages(raw, isDark)
             }
 
-        AnimatedContent(
-            targetState = displayContent,
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-            label = "about_content",
-        ) { content ->
-            ExpandableMarkdownContent(
-                content = content,
-                isExpanded = isExpanded,
-                onToggleExpanded = onToggleExpanded,
-                imageTransformer = MarkdownImageTransformer,
-                collapsedHeight = collapsedHeight,
-                fadeColor = MaterialTheme.colorScheme.background,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .animateContentSize(),
-            )
-        }
+        ExpandableMarkdownContent(
+            content = displayContent,
+            isExpanded = isExpanded,
+            onToggleExpanded = onToggleExpanded,
+            imageTransformer = MarkdownImageTransformer,
+            collapsedHeight = collapsedHeight,
+            measuredHeightPx = measuredHeightPx,
+            onMeasured = onMeasured,
+            fadeColor = MaterialTheme.colorScheme.background,
+            modifier =
+                Modifier
+                    .fillMaxWidth(),
+        )
     }
 }
 
@@ -141,6 +133,8 @@ fun ExpandableMarkdownContent(
     onToggleExpanded: () -> Unit,
     imageTransformer: ImageTransformer,
     collapsedHeight: Dp,
+    measuredHeightPx: Float?,
+    onMeasured: (Float) -> Unit,
     fadeColor: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -150,21 +144,34 @@ fun ExpandableMarkdownContent(
     val flavour = remember { GFMFlavourDescriptor() }
 
     val collapsedHeightPx = with(density) { collapsedHeight.toPx() }
-    var contentHeightPx by remember(content, collapsedHeightPx) { mutableStateOf(0f) }
-    val needsExpansion = contentHeightPx > collapsedHeightPx && collapsedHeightPx > 0f
+    val effectiveHeight = measuredHeightPx ?: 0f
+    val needsExpansion = effectiveHeight > collapsedHeightPx && collapsedHeightPx > 0f
+    val measuredDp =
+        measuredHeightPx?.let { with(density) { it.toDp() } }
+
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    LaunchedEffect(isExpanded) {
+        if (isExpanded) {
+            bringIntoViewRequester.bringIntoView()
+        }
+    }
 
     Column(
-        modifier = modifier.animateContentSize(),
+        modifier = modifier.bringIntoViewRequester(bringIntoViewRequester),
     ) {
         Box {
             Surface(
                 color = Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.onBackground,
                 modifier =
-                    if (!isExpanded && needsExpansion) {
-                        Modifier.heightIn(max = collapsedHeight).clipToBounds()
-                    } else {
-                        Modifier
+                    when {
+                        !isExpanded && needsExpansion ->
+                            Modifier
+                                .height(collapsedHeight)
+                                .clipToBounds()
+                        isExpanded && measuredDp != null ->
+                            Modifier.heightIn(min = measuredDp)
+                        else -> Modifier
                     },
             ) {
                 val isDark = androidx.compose.foundation.isSystemInDarkTheme()
@@ -179,10 +186,11 @@ fun ExpandableMarkdownContent(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .onGloballyPositioned { coordinates ->
-                                val measured = coordinates.size.height.toFloat()
-                                if (measured > contentHeightPx) {
-                                    contentHeightPx = measured
+                            .onSizeChanged { size ->
+                                val measured = size.height.toFloat()
+                                val decisive = effectiveHeight > collapsedHeightPx
+                                if (!decisive && measured > effectiveHeight) {
+                                    onMeasured(measured)
                                 }
                             },
                 )

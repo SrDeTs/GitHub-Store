@@ -1,12 +1,9 @@
 package zed.rainxch.details.presentation.components.sections
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,15 +20,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -52,6 +47,8 @@ fun LazyListScope.whatsNew(
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
     collapsedHeight: Dp,
+    measuredHeightPx: Float?,
+    onMeasured: (Float) -> Unit,
     translationState: TranslationState,
     onTranslateClick: () -> Unit,
     onLanguagePickerClick: () -> Unit,
@@ -121,7 +118,7 @@ fun LazyListScope.whatsNew(
         }
     }
 
-    item {
+    item(key = "whats_new_markdown") {
         Spacer(Modifier.height(12.dp))
 
         ExpandableMarkdownContent(
@@ -130,6 +127,8 @@ fun LazyListScope.whatsNew(
             collapsedHeight = collapsedHeight,
             isExpanded = isExpanded,
             onToggleExpanded = onToggleExpanded,
+            measuredHeightPx = measuredHeightPx,
+            onMeasured = onMeasured,
         )
     }
 }
@@ -141,6 +140,8 @@ private fun ExpandableMarkdownContent(
     collapsedHeight: Dp,
     isExpanded: Boolean,
     onToggleExpanded: () -> Unit,
+    measuredHeightPx: Float?,
+    onMeasured: (Float) -> Unit,
 ) {
     val raw =
         if (translationState.isShowingTranslation && translationState.translatedText != null) {
@@ -160,87 +161,86 @@ private fun ExpandableMarkdownContent(
     val flavour = remember { GFMFlavourDescriptor() }
     val cardColor = MaterialTheme.colorScheme.surfaceContainerLow
 
-    AnimatedContent(
-        targetState = displayContent,
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
-        label = "whats_new_content",
-    ) { content ->
+    val collapsedHeightPx = with(density) { collapsedHeight.toPx() }
+    val effectiveHeight = measuredHeightPx ?: 0f
+    val needsExpansion = effectiveHeight > collapsedHeightPx && collapsedHeightPx > 0f
+    val measuredDp =
+        measuredHeightPx?.let { with(density) { it.toDp() } }
 
-        val collapsedHeightPx = with(density) { collapsedHeight.toPx() }
-        var contentHeightPx by remember(content, collapsedHeightPx) {
-            mutableFloatStateOf(0f)
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    LaunchedEffect(isExpanded) {
+        if (isExpanded) {
+            bringIntoViewRequester.bringIntoView()
         }
-        val needsExpansion =
-            remember(contentHeightPx, collapsedHeightPx) {
-                contentHeightPx > collapsedHeightPx && collapsedHeightPx > 0f
+    }
+
+    Column(modifier = Modifier.bringIntoViewRequester(bringIntoViewRequester)) {
+        Box {
+            Box(
+                modifier =
+                    when {
+                        !isExpanded && needsExpansion ->
+                            Modifier
+                                .height(collapsedHeight)
+                                .clipToBounds()
+                        isExpanded && measuredDp != null ->
+                            Modifier.heightIn(min = measuredDp)
+                        else -> Modifier
+                    },
+            ) {
+                Markdown(
+                    content = displayContent,
+                    colors = colors,
+                    typography = typography,
+                    flavour = flavour,
+                    imageTransformer = MarkdownImageTransformer,
+                    components = zed.rainxch.details.presentation.markdown
+                        .githubStoreMarkdownComponents(MarkdownImageTransformer, isDark),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .onSizeChanged { size ->
+                                val measured = size.height.toFloat()
+                                val decisive = effectiveHeight > collapsedHeightPx
+                                if (!decisive && measured > effectiveHeight) {
+                                    onMeasured(measured)
+                                }
+                            },
+                )
             }
 
-        Column(
-            modifier = Modifier.animateContentSize(),
-        ) {
-            Box {
+            if (!isExpanded && needsExpansion) {
                 Box(
                     modifier =
-                        if (!isExpanded && needsExpansion) {
-                            Modifier.heightIn(max = collapsedHeight).clipToBounds()
-                        } else {
-                            Modifier
-                        },
-                ) {
-                    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
-                    Markdown(
-                        content = content,
-                        colors = colors,
-                        typography = typography,
-                        flavour = flavour,
-                        imageTransformer = MarkdownImageTransformer,
-                        components = zed.rainxch.details.presentation.markdown
-                            .githubStoreMarkdownComponents(MarkdownImageTransformer, isDark),
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .onGloballyPositioned { coordinates ->
-                                    val measured = coordinates.size.height.toFloat()
-                                    if (measured > contentHeightPx) {
-                                        contentHeightPx = measured
-                                    }
-                                },
-                    )
-                }
-
-                if (!isExpanded && needsExpansion) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                .height(80.dp)
-                                .background(
-                                    Brush.verticalGradient(
-                                        0f to cardColor.copy(alpha = 0f),
-                                        1f to cardColor,
-                                    ),
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(80.dp)
+                            .background(
+                                Brush.verticalGradient(
+                                    0f to cardColor.copy(alpha = 0f),
+                                    1f to cardColor,
                                 ),
-                    )
-                }
+                            ),
+                )
             }
+        }
 
-            if (needsExpansion) {
-                TextButton(
-                    onClick = onToggleExpanded,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                ) {
-                    Text(
-                        text =
-                            if (isExpanded) {
-                                stringResource(Res.string.show_less)
-                            } else {
-                                stringResource(Res.string.read_more)
-                            },
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
+        if (needsExpansion) {
+            TextButton(
+                onClick = onToggleExpanded,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            ) {
+                Text(
+                    text =
+                        if (isExpanded) {
+                            stringResource(Res.string.show_less)
+                        } else {
+                            stringResource(Res.string.read_more)
+                        },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
         }
     }
