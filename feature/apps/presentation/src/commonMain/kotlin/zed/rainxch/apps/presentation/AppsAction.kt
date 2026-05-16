@@ -65,6 +65,7 @@ sealed interface AppsAction {
     data object OnDismissLinkSheet : AppsAction
     data class OnDeviceAppSearchChange(val query: String) : AppsAction
     data class OnDeviceAppSelected(val app: DeviceAppUi) : AppsAction
+    data class OnToggleShowPlayStoreApps(val enabled: Boolean) : AppsAction
     data class OnRepoUrlChanged(val url: String) : AppsAction
     data object OnValidateAndLinkRepo : AppsAction
     data object OnBackToAppPicker : AppsAction

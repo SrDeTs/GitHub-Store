@@ -96,6 +96,7 @@ class AppsViewModel(
                     loadApps()
                     observePendingExternalImports()
                     observeKaoBannerDismissed()
+                    observeShowPlayStoreAppsInLink()
                     hasLoadedInitialData = true
                 }
             }.stateIn(
@@ -108,6 +109,14 @@ class AppsViewModel(
         viewModelScope.launch {
             tweaksRepository.getKaoBannerDismissed().collect { dismissed ->
                 _state.update { it.copy(showKaoBanner = !dismissed) }
+            }
+        }
+    }
+
+    private fun observeShowPlayStoreAppsInLink() {
+        viewModelScope.launch {
+            tweaksRepository.getShowPlayStoreAppsInLink().collect { enabled ->
+                _state.update { it.copy(showPlayStoreAppsInLink = enabled) }
             }
         }
     }
@@ -349,6 +358,13 @@ class AppsViewModel(
 
             is AppsAction.OnDeviceAppSearchChange -> {
                 _state.update { it.copy(deviceAppSearchQuery = action.query) }
+            }
+
+            is AppsAction.OnToggleShowPlayStoreApps -> {
+                _state.update { it.copy(showPlayStoreAppsInLink = action.enabled) }
+                viewModelScope.launch {
+                    tweaksRepository.setShowPlayStoreAppsInLink(action.enabled)
+                }
             }
 
             is AppsAction.OnDeviceAppSelected -> {

@@ -114,6 +114,15 @@ interface TweaksRepository {
     suspend fun setKaoBannerDismissed(dismissed: Boolean)
 
     /**
+     * Link-flow installed-app picker: include Play-Store-installed apps.
+     * Default false — Play-installed apps update via Play and rarely need
+     * linking to a GitHub repo, so non-Play apps surface first.
+     */
+    fun getShowPlayStoreAppsInLink(): Flow<Boolean>
+
+    suspend fun setShowPlayStoreAppsInLink(enabled: Boolean)
+
+    /**
      * One-shot flag for the APK Inspect coachmark next to the install
      * button on the details screen. `false` until the user has seen the
      * coachmark at least once; flips permanently to `true` thereafter.

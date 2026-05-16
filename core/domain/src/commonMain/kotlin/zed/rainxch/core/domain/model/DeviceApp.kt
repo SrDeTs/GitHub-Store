@@ -6,4 +6,5 @@ data class DeviceApp(
     val versionName: String?,
     val versionCode: Long,
     val signingFingerprint: String?,
+    val installerPackageName: String? = null,
 )

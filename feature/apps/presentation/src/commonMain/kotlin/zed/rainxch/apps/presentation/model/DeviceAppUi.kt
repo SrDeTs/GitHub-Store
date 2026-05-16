@@ -6,4 +6,8 @@ data class DeviceAppUi(
     val versionName: String?,
     val versionCode: Long,
     val signingFingerprint: String?,
-)
+    val installerPackageName: String? = null,
+) {
+    val isFromPlayStore: Boolean
+        get() = installerPackageName == "com.android.vending"
+}

@@ -90,18 +90,37 @@ data class AppsState(
     val isExternalImportInFlight: Boolean = false,
     // Keep Android Open campaign banner
     val showKaoBanner: Boolean = false,
+    // Link-flow: include Play-Store-installed apps in the picker. Default
+    // off — apps installed from Play are usually NOT the ones the user
+    // wants to link to a GitHub repo (Play already updates them).
+    val showPlayStoreAppsInLink: Boolean = false,
 ) {
     val filteredDeviceApps: ImmutableList<DeviceAppUi>
-        get() =
-            if (deviceAppSearchQuery.isBlank()) {
-                deviceApps.toImmutableList()
-            } else {
-                deviceApps
-                    .filter {
+        get() {
+            val searched =
+                if (deviceAppSearchQuery.isBlank()) {
+                    deviceApps
+                } else {
+                    deviceApps.filter {
                         it.appName.contains(deviceAppSearchQuery, ignoreCase = true) ||
                             it.packageName.contains(deviceAppSearchQuery, ignoreCase = true)
-                    }.toImmutableList()
-            }
+                    }
+                }
+            val visible =
+                if (showPlayStoreAppsInLink) {
+                    searched
+                } else {
+                    searched.filterNot { it.isFromPlayStore }
+                }
+            // Non-Play first (likely-linkable apps), alpha within each
+            // bucket. Stable across re-renders so the picker doesn't jump
+            // when search text changes.
+            return visible
+                .sortedWith(
+                    compareBy<DeviceAppUi> { it.isFromPlayStore }
+                        .thenBy { it.appName.lowercase() },
+                ).toImmutableList()
+        }
 
     /**
      * Live-filtered view of [linkInstallableAssets] for the link sheet's

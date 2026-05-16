@@ -8,6 +8,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.Checkbox
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -85,8 +86,12 @@ fun LinkAppBottomSheet(
                 LinkStep.PickApp -> PickAppStep(
                     deviceApps = state.filteredDeviceApps,
                     searchQuery = state.deviceAppSearchQuery,
+                    showPlayStoreApps = state.showPlayStoreAppsInLink,
                     onSearchChange = { onAction(AppsAction.OnDeviceAppSearchChange(it)) },
                     onAppSelected = { onAction(AppsAction.OnDeviceAppSelected(it)) },
+                    onToggleShowPlayStoreApps = {
+                        onAction(AppsAction.OnToggleShowPlayStoreApps(it))
+                    },
                 )
 
                 LinkStep.EnterUrl -> EnterUrlStep(
@@ -124,8 +129,10 @@ fun LinkAppBottomSheet(
 private fun PickAppStep(
     deviceApps: List<DeviceAppUi>,
     searchQuery: String,
+    showPlayStoreApps: Boolean,
     onSearchChange: (String) -> Unit,
     onAppSelected: (DeviceAppUi) -> Unit,
+    onToggleShowPlayStoreApps: (Boolean) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -169,6 +176,26 @@ private fun PickAppStep(
                 unfocusedIndicatorColor = Color.Transparent,
             ),
         )
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggleShowPlayStoreApps(!showPlayStoreApps) }
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(
+                checked = showPlayStoreApps,
+                onCheckedChange = onToggleShowPlayStoreApps,
+            )
+            Text(
+                text = stringResource(Res.string.link_show_play_store_apps),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
 
         Spacer(Modifier.height(8.dp))
 
