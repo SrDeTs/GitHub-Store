@@ -3,6 +3,8 @@ package zed.rainxch.details.presentation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.scrollable
+import zed.rainxch.core.domain.getPlatform
+import zed.rainxch.core.domain.model.Platform
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -521,12 +523,30 @@ fun DetailsScreen(
             }
             val pullEnabled = remember { isPullToRefreshSupported() }
 
+            // Gutter scroll forwarding is a desktop-only UX polish
+            // (mouse-wheel-in-side-margins → scrolls content column).
+            // On Android the outer scrollable fought the inner
+            // LazyColumn's own scroll handler — both pointing at the
+            // same `listState` doubled-up gesture handling and the
+            // touch scroll froze. Issue tracked under content-width
+            // PR follow-up. Keep enabled = isDesktop.
+            val isDesktop = remember { getPlatform() != Platform.ANDROID }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .scrollable(
                         state = listState,
                         orientation = Orientation.Vertical,
+                        // LazyColumn's internal scrollable uses
+                        // reverseDirection=true (vertical, default
+                        // layout direction). Matching that here makes
+                        // the wheel-direction sign convention agree
+                        // — otherwise wheel-up at the top jumps to
+                        // the bottom and vice versa, because parent
+                        // and child interpret the same pointer delta
+                        // with opposite signs.
+                        reverseDirection = true,
+                        enabled = isDesktop,
                     )
                     .onSizeChanged { size ->
                         // Layout-phase write; cheaper than BoxWithConstraints
