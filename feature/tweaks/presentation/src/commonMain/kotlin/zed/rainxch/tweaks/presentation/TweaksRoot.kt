@@ -135,6 +135,24 @@ fun TweaksRoot(
                 }
             }
 
+            TweaksEvent.OnLibreTranslateCredentialsSaved -> {
+                coroutineScope.launch {
+                    snackbarState.showSnackbar(getString(Res.string.translation_libre_saved))
+                }
+            }
+
+            TweaksEvent.OnDeeplCredentialsSaved -> {
+                coroutineScope.launch {
+                    snackbarState.showSnackbar(getString(Res.string.translation_deepl_saved))
+                }
+            }
+
+            TweaksEvent.OnMicrosoftTranslatorCredentialsSaved -> {
+                coroutineScope.launch {
+                    snackbarState.showSnackbar(getString(Res.string.translation_microsoft_saved))
+                }
+            }
+
             TweaksEvent.OnAppLanguageChangeRequiresRestart -> {
                 coroutineScope.launch {
                     val result =

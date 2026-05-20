@@ -53,6 +53,14 @@ data class TweaksState(
     val youdaoAppKey: String = "",
     val youdaoAppSecret: String = "",
     val isYoudaoAppSecretVisible: Boolean = false,
+    val libreTranslateBaseUrl: String = "",
+    val libreTranslateApiKey: String = "",
+    val isLibreTranslateApiKeyVisible: Boolean = false,
+    val deeplAuthKey: String = "",
+    val isDeeplAuthKeyVisible: Boolean = false,
+    val microsoftTranslatorKey: String = "",
+    val microsoftTranslatorRegion: String = "",
+    val isMicrosoftTranslatorKeyVisible: Boolean = false,
     /**
      * User-selected UI language as a BCP 47 tag, or `null` to follow
      * the system locale. Mirrors the preference observed by

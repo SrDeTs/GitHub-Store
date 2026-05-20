@@ -488,6 +488,31 @@ class TweaksViewModel(
                 _state.update { it.copy(youdaoAppSecret = appSecret) }
             }
         }
+        viewModelScope.launch {
+            tweaksRepository.getLibreTranslateBaseUrl().collect { url ->
+                _state.update { it.copy(libreTranslateBaseUrl = url) }
+            }
+        }
+        viewModelScope.launch {
+            tweaksRepository.getLibreTranslateApiKey().collect { apiKey ->
+                _state.update { it.copy(libreTranslateApiKey = apiKey) }
+            }
+        }
+        viewModelScope.launch {
+            tweaksRepository.getDeeplAuthKey().collect { authKey ->
+                _state.update { it.copy(deeplAuthKey = authKey) }
+            }
+        }
+        viewModelScope.launch {
+            tweaksRepository.getMicrosoftTranslatorKey().collect { key ->
+                _state.update { it.copy(microsoftTranslatorKey = key) }
+            }
+        }
+        viewModelScope.launch {
+            tweaksRepository.getMicrosoftTranslatorRegion().collect { region ->
+                _state.update { it.copy(microsoftTranslatorRegion = region) }
+            }
+        }
     }
 
     private fun evaluateBatteryOptimizationCard() {
@@ -951,6 +976,47 @@ class TweaksViewModel(
                             }
                         }
                     }
+                    TranslationProvider.LIBRE_TRANSLATE -> {
+                        // No gating — repository falls back to the
+                        // public Disroot mirror when no URL configured,
+                        // so first-tap "just works" without going
+                        // through a config dialog.
+                        _state.update { it.copy(draftTranslationProvider = null) }
+                        viewModelScope.launch {
+                            tweaksRepository.setTranslationProvider(action.provider)
+                            _events.send(TweaksEvent.OnTranslationProviderSaved)
+                        }
+                    }
+                    TranslationProvider.DEEPL -> {
+                        val current = _state.value
+                        val hasCreds = current.deeplAuthKey.isNotBlank()
+                        if (hasCreds) {
+                            _state.update { it.copy(draftTranslationProvider = null) }
+                            viewModelScope.launch {
+                                tweaksRepository.setTranslationProvider(action.provider)
+                                _events.send(TweaksEvent.OnTranslationProviderSaved)
+                            }
+                        } else {
+                            _state.update {
+                                it.copy(draftTranslationProvider = TranslationProvider.DEEPL)
+                            }
+                        }
+                    }
+                    TranslationProvider.MICROSOFT -> {
+                        val current = _state.value
+                        val hasCreds = current.microsoftTranslatorKey.isNotBlank()
+                        if (hasCreds) {
+                            _state.update { it.copy(draftTranslationProvider = null) }
+                            viewModelScope.launch {
+                                tweaksRepository.setTranslationProvider(action.provider)
+                                _events.send(TweaksEvent.OnTranslationProviderSaved)
+                            }
+                        } else {
+                            _state.update {
+                                it.copy(draftTranslationProvider = TranslationProvider.MICROSOFT)
+                            }
+                        }
+                    }
                 }
             }
 
@@ -993,6 +1059,100 @@ class TweaksViewModel(
                     // the user emptied fields and cancelled implicitly.
                     _state.update { it.copy(draftTranslationProvider = null) }
                     _events.send(TweaksEvent.OnYoudaoCredentialsSaved)
+                }
+            }
+
+            is TweaksAction.OnLibreTranslateBaseUrlChanged -> {
+                _state.update { it.copy(libreTranslateBaseUrl = action.url) }
+            }
+
+            is TweaksAction.OnLibreTranslateApiKeyChanged -> {
+                _state.update { it.copy(libreTranslateApiKey = action.apiKey) }
+            }
+
+            TweaksAction.OnLibreTranslateApiKeyVisibilityToggle -> {
+                _state.update {
+                    it.copy(isLibreTranslateApiKeyVisible = !it.isLibreTranslateApiKeyVisible)
+                }
+            }
+
+            TweaksAction.OnLibreTranslateCredentialsSave -> {
+                val current = _state.value
+                viewModelScope.launch {
+                    tweaksRepository.setLibreTranslateBaseUrl(current.libreTranslateBaseUrl)
+                    tweaksRepository.setLibreTranslateApiKey(current.libreTranslateApiKey)
+                    val shouldActivate =
+                        current.libreTranslateBaseUrl.isNotBlank() &&
+                            (
+                                current.translationProvider != TranslationProvider.LIBRE_TRANSLATE ||
+                                    current.draftTranslationProvider == TranslationProvider.LIBRE_TRANSLATE
+                            )
+                    if (shouldActivate) {
+                        tweaksRepository.setTranslationProvider(TranslationProvider.LIBRE_TRANSLATE)
+                    }
+                    _state.update { it.copy(draftTranslationProvider = null) }
+                    _events.send(TweaksEvent.OnLibreTranslateCredentialsSaved)
+                }
+            }
+
+            is TweaksAction.OnDeeplAuthKeyChanged -> {
+                _state.update { it.copy(deeplAuthKey = action.authKey) }
+            }
+
+            TweaksAction.OnDeeplAuthKeyVisibilityToggle -> {
+                _state.update {
+                    it.copy(isDeeplAuthKeyVisible = !it.isDeeplAuthKeyVisible)
+                }
+            }
+
+            TweaksAction.OnDeeplCredentialsSave -> {
+                val current = _state.value
+                viewModelScope.launch {
+                    tweaksRepository.setDeeplAuthKey(current.deeplAuthKey)
+                    val shouldActivate =
+                        current.deeplAuthKey.isNotBlank() &&
+                            (
+                                current.translationProvider != TranslationProvider.DEEPL ||
+                                    current.draftTranslationProvider == TranslationProvider.DEEPL
+                            )
+                    if (shouldActivate) {
+                        tweaksRepository.setTranslationProvider(TranslationProvider.DEEPL)
+                    }
+                    _state.update { it.copy(draftTranslationProvider = null) }
+                    _events.send(TweaksEvent.OnDeeplCredentialsSaved)
+                }
+            }
+
+            is TweaksAction.OnMicrosoftTranslatorKeyChanged -> {
+                _state.update { it.copy(microsoftTranslatorKey = action.key) }
+            }
+
+            is TweaksAction.OnMicrosoftTranslatorRegionChanged -> {
+                _state.update { it.copy(microsoftTranslatorRegion = action.region) }
+            }
+
+            TweaksAction.OnMicrosoftTranslatorKeyVisibilityToggle -> {
+                _state.update {
+                    it.copy(isMicrosoftTranslatorKeyVisible = !it.isMicrosoftTranslatorKeyVisible)
+                }
+            }
+
+            TweaksAction.OnMicrosoftTranslatorCredentialsSave -> {
+                val current = _state.value
+                viewModelScope.launch {
+                    tweaksRepository.setMicrosoftTranslatorKey(current.microsoftTranslatorKey)
+                    tweaksRepository.setMicrosoftTranslatorRegion(current.microsoftTranslatorRegion)
+                    val shouldActivate =
+                        current.microsoftTranslatorKey.isNotBlank() &&
+                            (
+                                current.translationProvider != TranslationProvider.MICROSOFT ||
+                                    current.draftTranslationProvider == TranslationProvider.MICROSOFT
+                            )
+                    if (shouldActivate) {
+                        tweaksRepository.setTranslationProvider(TranslationProvider.MICROSOFT)
+                    }
+                    _state.update { it.copy(draftTranslationProvider = null) }
+                    _events.send(TweaksEvent.OnMicrosoftTranslatorCredentialsSaved)
                 }
             }
 

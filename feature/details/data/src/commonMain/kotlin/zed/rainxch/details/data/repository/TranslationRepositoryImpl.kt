@@ -11,6 +11,9 @@ import zed.rainxch.core.domain.model.TranslationProvider
 import zed.rainxch.core.domain.repository.TweaksRepository
 import zed.rainxch.details.data.translation.GoogleTranslator
 import zed.rainxch.details.data.translation.Translator
+import zed.rainxch.details.data.translation.DeeplTranslator
+import zed.rainxch.details.data.translation.LibreTranslator
+import zed.rainxch.details.data.translation.MicrosoftTranslator
 import zed.rainxch.details.data.translation.YoudaoTranslator
 import zed.rainxch.details.domain.model.TranslationResult
 import zed.rainxch.details.domain.repository.TranslationRepository
@@ -214,6 +217,35 @@ class TranslationRepositoryImpl(
                     appSecret = appSecret,
                 )
             }
+            TranslationProvider.LIBRE_TRANSLATE -> {
+                val configured = tweaksRepository.getLibreTranslateBaseUrl().first()
+                val baseUrl = configured.takeIf { it.isNotBlank() } ?: LIBRE_TRANSLATE_DEFAULT_URL
+                val apiKey = tweaksRepository.getLibreTranslateApiKey().first().takeIf { it.isNotBlank() }
+                LibreTranslator(
+                    httpClient = { httpClient },
+                    json = json,
+                    baseUrl = baseUrl,
+                    apiKey = apiKey,
+                )
+            }
+            TranslationProvider.DEEPL -> {
+                val authKey = tweaksRepository.getDeeplAuthKey().first()
+                DeeplTranslator(
+                    httpClient = { httpClient },
+                    json = json,
+                    authKey = authKey,
+                )
+            }
+            TranslationProvider.MICROSOFT -> {
+                val key = tweaksRepository.getMicrosoftTranslatorKey().first()
+                val region = tweaksRepository.getMicrosoftTranslatorRegion().first()
+                MicrosoftTranslator(
+                    httpClient = { httpClient },
+                    json = json,
+                    subscriptionKey = key,
+                    subscriptionRegion = region,
+                )
+            }
         }
     }
 
@@ -284,6 +316,11 @@ class TranslationRepositoryImpl(
     companion object {
         private const val MAX_CACHE_SIZE = 50
         private const val CACHE_TTL_MS = 30 * 60 * 1000L // 30 minutes
+        // Public Disroot-hosted LibreTranslate mirror — anonymous, no
+        // API key required. Used when the user picks LibreTranslate
+        // without configuring a self-hosted URL. Override in Tweaks →
+        // Translation when a mirror you trust more is available.
+        private const val LIBRE_TRANSLATE_DEFAULT_URL = "https://translate.disroot.org"
     }
 
     @OptIn(ExperimentalTime::class)

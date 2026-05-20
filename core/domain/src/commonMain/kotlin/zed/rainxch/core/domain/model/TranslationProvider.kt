@@ -15,6 +15,9 @@ package zed.rainxch.core.domain.model
 enum class TranslationProvider {
     GOOGLE,
     YOUDAO,
+    LIBRE_TRANSLATE,
+    DEEPL,
+    MICROSOFT,
     ;
 
     companion object {

@@ -910,6 +910,25 @@
     <string name="translation_youdao_app_secret">App Secret</string>
     <string name="translation_youdao_save">Save credentials</string>
     <string name="translation_youdao_saved">Youdao credentials saved</string>
+    <string name="translation_provider_libre">LibreTranslate</string>
+    <string name="translation_provider_deepl">DeepL</string>
+    <string name="translation_libre_help">Works out of the box via the public Disroot mirror — leave fields empty to use it. For more privacy, paste your own self-hosted URL. API key only needed if the instance requires one.</string>
+    <string name="translation_libre_base_url">Instance URL</string>
+    <string name="translation_libre_api_key">API key (optional)</string>
+    <string name="translation_libre_save">Save settings</string>
+    <string name="translation_libre_saved">LibreTranslate settings saved</string>
+    <string name="translation_deepl_help">Sign up at deepl.com/pro-api. Free tier keys end with :fx and use the free endpoint automatically. Pro tier keeps your text private; Free tier may use submitted text to improve models.</string>
+    <string name="translation_deepl_auth_key">Auth key</string>
+    <string name="translation_deepl_save">Save key</string>
+    <string name="translation_deepl_saved">DeepL key saved</string>
+    <string name="translation_deepl_get_free_key">Get a free DeepL key →</string>
+    <string name="translation_provider_microsoft">Microsoft</string>
+    <string name="translation_microsoft_help">Azure Translator is privacy-respecting (No-Trace by default — your text is never stored or used for training). Free tier covers 2M characters/month. Region is only needed for non-global resources.</string>
+    <string name="translation_microsoft_key">Subscription key</string>
+    <string name="translation_microsoft_region">Region (e.g. westeurope, leave empty for Global)</string>
+    <string name="translation_microsoft_save">Save credentials</string>
+    <string name="translation_microsoft_saved">Microsoft Translator credentials saved</string>
+    <string name="translation_microsoft_get_free_key">Get a free Azure key →</string>
 
     <!-- E1: External import wizard -->
     <string name="external_import_top_bar_title">Import installed apps</string>
