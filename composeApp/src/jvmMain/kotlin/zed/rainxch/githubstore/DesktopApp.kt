@@ -1,10 +1,13 @@
 package zed.rainxch.githubstore
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
@@ -14,8 +17,13 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -33,6 +41,7 @@ import zed.rainxch.githubstore.core.presentation.res.menubar_help_feedback
 import zed.rainxch.githubstore.core.presentation.res.menubar_help_licenses
 import zed.rainxch.githubstore.core.presentation.res.menubar_help_menu
 import zed.rainxch.githubstore.core.presentation.res.menubar_help_privacy
+import zed.rainxch.githubstore.desktop.WindowStateStore
 import zed.rainxch.githubstore.desktop.applyMacosWindowAppearance
 import zed.rainxch.githubstore.desktop.applyWindowsImmersiveDarkMode
 import zed.rainxch.githubstore.desktop.installMacosSystemAppearance
@@ -82,6 +91,28 @@ fun main(args: Array<String>) {
 
     application {
         var deepLinkUri by mutableStateOf(deepLinkArg)
+        val windowState = remember { WindowStateStore.load() }
+
+        DisposableEffect(windowState) {
+            val hook = Thread { WindowStateStore.save(windowState) }
+            runCatching { Runtime.getRuntime().addShutdownHook(hook) }
+            onDispose {
+                runCatching { Runtime.getRuntime().removeShutdownHook(hook) }
+            }
+        }
+
+        @OptIn(FlowPreview::class)
+        LaunchedEffect(windowState) {
+            snapshotFlow {
+                Triple(windowState.placement, windowState.position, windowState.size)
+            }.distinctUntilChanged()
+                .debounce(500)
+                .collect {
+                    withContext(Dispatchers.IO) {
+                        WindowStateStore.save(windowState)
+                    }
+                }
+        }
 
         LaunchedEffect(Unit) {
             DesktopDeepLink.startInstanceListener { uri ->
@@ -107,7 +138,11 @@ fun main(args: Array<String>) {
         }
 
         Window(
-            onCloseRequest = ::exitApplication,
+            onCloseRequest = {
+                WindowStateStore.save(windowState)
+                exitApplication()
+            },
+            state = windowState,
             title = stringResource(Res.string.app_name),
             icon = painterResource(Res.drawable.app_icon),
             onKeyEvent = { keyEvent ->
