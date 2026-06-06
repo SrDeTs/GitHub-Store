@@ -46,7 +46,7 @@ class MirrorRepositoryImpl(
     private val appScope: CoroutineScope,
 ) : MirrorRepository {
     private val json = Json { ignoreUnknownKeys = true }
-    private val cacheTtlMs = 24L * 60 * 60 * 1000
+    private val cacheTtlMs = 60L * 60 * 1000
 
     private val _catalog = MutableStateFlow<List<MirrorConfig>>(emptyList())
     private val _removedNotices = MutableSharedFlow<MirrorRemoved>(
